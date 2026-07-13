@@ -1,0 +1,110 @@
+<!-- Puntos de Funcion -->
+<div id="panel-fp" class="panel">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Puntos de <span>Funcion</span></div>
+      <div class="page-desc">Convierte componentes funcionales en KLOC estimadas</div>
+    </div>
+    <span class="page-chip green">FPA</span>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Conteo de Componentes</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="fp-header">
+          <span>Tipo</span>
+          <span style="text-align:center">Simple</span>
+          <span style="text-align:center">Medio</span>
+          <span style="text-align:center">Complejo</span>
+        </div>
+        {% for t in tipos_fp %}
+        <div class="fp-row">
+          <span class="fp-label">{{ t.name }}</span>
+          <input type="number" class="fp-input" id="fp-{{ t.code }}-s" value="0" min="0">
+          <input type="number" class="fp-input" id="fp-{{ t.code }}-m" value="0" min="0">
+          <input type="number" class="fp-input" id="fp-{{ t.code }}-c" value="0" min="0">
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Factor de Ajuste VAF</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div style="margin-bottom:12px;color:var(--text2);font-size:11.5px">14 caracteristicas &middot; 0 = sin influencia, 5 = esencial</div>
+        <div class="vaf-grid">
+          {% for c in vaf_chars %}
+          <div class="vaf-item">
+            <span style="font-size:10.5px;color:var(--text2);flex:1">{{ c }}</span>
+            <select id="vaf-{{ loop.index0 }}" style="width:50px;font-size:10.5px;padding:3px 4px">
+              {% for v in range(6) %}<option value="{{ v }}" {% if v==3 %}selected{% endif %}>{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Conversion a KLOC</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Lenguaje <small>LOC por punto de funcion</small></div>
+          <select id="fp-lang">
+            {% for lang, loc in loc_por_pf.items() %}
+            <option value="{{ loc }}" {% if lang=='Python' %}selected{% endif %}>{{ lang }} ({{ loc }} LOC/PF)</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button onclick="calcularFP()" class="btn btn-primary green">
+          Calcular &rarr;
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Resultados FPA</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="results-grid result-stagger" id="results-fp">
+          <div class="result-card accent-border">
+            <div class="result-label">PF Sin Ajustar</div>
+            <div class="result-value accent" id="r-fp-pfsa">&mdash;</div>
+            <div class="result-unit">puntos funcion</div>
+          </div>
+          <div class="result-card amber-border">
+            <div class="result-label">Factor VAF</div>
+            <div class="result-value amber" id="r-fp-vaf">&mdash;</div>
+            <div class="result-unit">0.65 - 1.35</div>
+          </div>
+          <div class="result-card green-border">
+            <div class="result-label">PF Ajustados</div>
+            <div class="result-value green" id="r-fp-pfa">&mdash;</div>
+            <div class="result-unit">puntos funcion</div>
+          </div>
+          <div class="result-card accent-border">
+            <div class="result-label">KLOC estimadas</div>
+            <div class="result-value accent" id="r-fp-kloc" style="font-size:22px">&mdash;</div>
+            <div class="result-unit">miles de lineas</div>
+          </div>
+        </div>
+        <button onclick="enviarAC81b()" class="btn-secondary">&rarr; Enviar KLOC a Basico</button>
+        <button onclick="enviarAC81()" class="btn-secondary">&rarr; Enviar KLOC a Intermedio</button>
+        <button onclick="enviarAC2()" class="btn-secondary">&rarr; Enviar KLOC a COCOMO II</button>
+        <button id="btn-export-fp" onclick="exportarExcel('fp')" class="btn-export btn-excel" style="display:none;margin-top:8px">
+          Exportar Excel
+        </button>
+        <button id="btn-pdf-fp" onclick="exportarPDF('fp')" class="btn-export btn-pdf" style="display:none">
+          Exportar PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

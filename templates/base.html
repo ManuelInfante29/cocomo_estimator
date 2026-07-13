@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COCOMO &mdash; Estimador de Costos de Software</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;460;500;600&display=swap" rel="stylesheet">
+{% include 'panels/_styles.html' %}
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <div class="logo-hex"></div>
+      <div class="logo-label">CO<span>COMO</span></div>
+    </div>
+    <div class="logo-sub">Estimador de costos</div>
+  </div>
+
+  <div class="nav">
+    <div class="nav-section">Modelos</div>
+    <div class="nav-item" onclick="showPanel('c81b')">
+      <div class="nav-indicator"></div>
+      Basico
+      <span class="nav-tag">C81</span>
+    </div>
+    <div class="nav-item active" onclick="showPanel('c81')">
+      <div class="nav-indicator"></div>
+      Intermedio
+      <span class="nav-tag">C81</span>
+    </div>
+    <div class="nav-item" onclick="showPanel('c2')">
+      <div class="nav-indicator"></div>
+      COCOMO II
+      <span class="nav-tag">C2</span>
+    </div>
+    <div class="nav-section">Herramientas</div>
+    <div class="nav-item" onclick="showPanel('fp')">
+      <div class="nav-indicator"></div>
+      Puntos de Funcion
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="footer-pulse"></div>
+    Python &middot; Flask &middot; v2.0
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  {% include 'panels/c81_basico.html' %}
+  {% include 'panels/c81_intermedio.html' %}
+  {% include 'panels/cocomo2.html' %}
+  {% include 'panels/puntos_funcion.html' %}
+</main>
+
+</div>
+
+<!-- SPINNER -->
+<div class="spinner-overlay" id="spinner">
+  <div class="spinner-ring"></div>
+  <div class="spinner-label">Procesando</div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="{{ url_for('static', filename='js/nav.js') }}"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script src="{{ url_for('static', filename='js/c81.js') }}"></script>
+<script src="{{ url_for('static', filename='js/c2.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fp.js') }}"></script>
+
+<!-- Inline: garantiza que recalcularEAF y recalcularByEM esten disponibles -->
+<script>
+  // Re-exponer en window para garantizar acceso desde onchange
+  if (typeof recalcularEAF === 'function') {
+    window._recalcularEAF = recalcularEAF;
+  }
+  if (typeof recalcularByEM === 'function') {
+    window._recalcularByEM = recalcularByEM;
+  }
+
+  // Inicializar gauges al cargar
+  if (typeof recalcularEAF === 'function') recalcularEAF();
+  if (typeof recalcularByEM === 'function') recalcularByEM();
+</script>
+</body>
+</html>

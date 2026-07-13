@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COCOMO Estimator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e28;
+    --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+    --accent:#4f9cf9;--accent2:#7c3aed;--green:#22d3a0;--amber:#f59e0b;
+    --text:#e8eaf0;--text2:#8b90a0;--text3:#5a5f70;--card:#161922;
+    --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;--display:'Syne',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px;line-height:1.6}
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;z-index:10}
+  .logo{padding:24px 20px 20px;border-bottom:1px solid var(--border)}
+  .logo-title{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.5px}
+  .logo-sub{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+  .nav{padding:12px 0;flex:1}
+  .nav-section{font-size:10px;font-family:var(--mono);color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:12px 20px 6px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;border-left:2px solid transparent}
+  .nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+  .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(79,156,249,.07)}
+  .nav-dot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.6;flex-shrink:0}
+  .nav-item.active .nav-dot{opacity:1}
+  .main{margin-left:220px;flex:1;padding:32px 40px;max-width:calc(100vw - 220px)}
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px}
+  .page-title{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:-.5px}
+  .page-badge{display:inline-block;font-family:var(--mono);font-size:10px;padding:3px 8px;background:rgba(79,156,249,.12);color:var(--accent);border-radius:4px;border:1px solid rgba(79,156,249,.2);margin-left:10px;vertical-align:middle}
+  .page-badge-green{background:rgba(34,211,160,.12);color:var(--green);border-color:rgba(34,211,160,.2)}
+  .page-desc{color:var(--text2);font-size:13px;margin-top:4px}
+  .panel{display:none}.panel.active{display:block;animation:fadeUp .25s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px}
+  .card:last-child{margin-bottom:0}
+  .card-title{font-family:var(--display);font-weight:600;font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .card-title-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+  .form-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px}
+  .form-label{font-size:12px;color:var(--text2);flex:1}
+  .form-label span{font-family:var(--mono);font-size:10px;color:var(--text3);display:block}
+  input[type=number],select{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:13px;padding:7px 10px;width:130px;outline:none;transition:border-color .15s}
+  input[type=number]:focus,select:focus{border-color:var(--accent)}
+  select option{background:var(--bg3)}
+  .driver-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .driver-item{display:flex;align-items:center;padding:6px 10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);gap:6px}
+  .driver-code{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:34px}
+  .driver-name{font-size:11px;color:var(--text2);flex:1}
+  .driver-select{width:88px!important;font-size:11px!important;padding:3px 4px!important}
+  .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+  .result-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px 16px;text-align:center}
+  .result-card.highlight{border-color:rgba(79,156,249,.4);background:rgba(79,156,249,.07)}
+  .result-label{font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+  .result-value{font-family:var(--display);font-weight:700;font-size:26px}
+  .result-value.accent{color:var(--accent)}.result-value.green{color:var(--green)}.result-value.amber{color:var(--amber)}
+  .result-unit{font-size:11px;color:var(--text3);margin-top:2px}
+  .phases-table{width:100%;border-collapse:collapse;font-size:13px}
+  .phases-table th{text-align:left;padding:8px 12px;color:var(--text3);font-family:var(--mono);font-size:11px;font-weight:400;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.8px}
+  .phases-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+  .phases-table tr:last-child td{border-bottom:none}
+  .phases-table tr:hover td{background:rgba(255,255,255,.02);color:var(--text)}
+  .phase-name{color:var(--text);font-weight:500}
+  .phase-bar-wrap{width:80px;height:4px;background:var(--bg3);border-radius:2px;display:inline-block;vertical-align:middle;margin-right:8px}
+  .phase-bar{height:100%;background:var(--accent);border-radius:2px}
+  .eq-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-family:var(--mono);font-size:12px;color:var(--text2);line-height:2}
+  .eq-box .ev{color:var(--accent)}.eq-box .en{color:var(--green)}.eq-box .ec{color:var(--text3)}
+  .eaf-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .eaf-val{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--accent)}
+  .fp-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;align-items:center}
+  .fp-label{font-size:12px;color:var(--text2);padding:0 8px}
+  .fp-input{width:100%!important}
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+  .loading{opacity:.5;pointer-events:none}
+  .btn-secondary{width:100%;padding:10px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-family:var(--display);font-weight:600;font-size:13px;cursor:pointer;margin-top:8px;transition:all .15s}
+  .btn-secondary:hover{background:rgba(79,156,249,.1)}
+  /* Nota informativa modo básico */
+  .info-box{background:rgba(34,211,160,.07);border:1px solid rgba(34,211,160,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--green);margin-bottom:16px;line-height:1.6}
+  .info-box strong{font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-title">COCOMO<span style="color:var(--accent)">.</span></div>
+    <div class="logo-sub">Flask + Python</div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Modelos</div>
+    <div class="nav-item" onclick="showPanel('c81b')"><div class="nav-dot"></div>COCOMO 81 Básico</div>
+    <div class="nav-item active" onclick="showPanel('c81')"><div class="nav-dot"></div>COCOMO 81 Intermedio</div>
+    <div class="nav-item" onclick="showPanel('c2')"><div class="nav-dot"></div>COCOMO II</div>
+    <div class="nav-section">Herramientas</div>
+    <div class="nav-item" onclick="showPanel('fp')"><div class="nav-dot"></div>Puntos de Función</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ═══ COCOMO 81 BÁSICO ═══ -->
+<div id="panel-c81b" class="panel">
+  <div class="page-header">
+    <div>
+      <div class="page-title">COCOMO 81 Básico <span class="page-badge page-badge-green">Boehm 1981</span></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Parámetros del proyecto</div>
+        <div class="form-row">
+          <div class="form-label">Tamaño KLOC <span>Miles de líneas de código</span></div>
+          <input type="number" id="c81b-kloc" value="10" min="0.1" step="0.1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Modo del proyecto</div>
+          <select id="c81b-modo">
+            <option value="organico">Orgánico</option>
+            <option value="semiacoplado">Semiacoplado</option>
+            <option value="empotrado">Empotrado</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Costo hombre-mes ($)</div>
+          <input type="number" id="c81b-costo" value="3000" min="0" step="100">
+        </div>
+
+        <!-- Tabla de constantes del modo seleccionado -->
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Constantes del modo seleccionado</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="c81b-params-display">
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">a</div>
+              <div style="font-size:18px;font-weight:600;font-family:var(--mono);color:var(--green)" id="c81b-const-a">3.0</div>
+            </div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">b</div>
+              <div style="font-size:18px;font-weight:600;font-family:var(--mono);color:var(--green)" id="c81b-const-b">1.12</div>
+            </div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">c</div>
+              <div style="font-size:18px;font-weight:600;font-family:var(--mono);color:var(--amber)" id="c81b-const-c">2.5</div>
+            </div>
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">d</div>
+              <div style="font-size:18px;font-weight:600;font-family:var(--mono);color:var(--amber)" id="c81b-const-d">0.35</div>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="calcularC81Basico()" style="width:100%;padding:12px;background:var(--green);color:#000;border:none;border-radius:8px;font-family:var(--display);font-weight:700;font-size:14px;cursor:pointer;margin-top:16px;transition:all .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          Calcular →
+        </button>
+        <button id="btn-export-c81b" onclick="exportarExcel('c81basico')" style="display:none;width:100%;padding:10px;background:transparent;color:var(--green);border:1px solid var(--green);border-radius:8px;font-family:var(--display);font-weight:600;font-size:12px;cursor:pointer;margin-top:8px;transition:all .15s" onmouseover="this.style.background='rgba(34,211,160,.1)'" onmouseout="this.style.background='transparent'">
+          📊 Exportar Excel
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Resultados</div>
+        <div class="results-grid">
+          <div class="result-card highlight">
+            <div class="result-label">Esfuerzo</div>
+            <div class="result-value accent" id="r-c81b-effort">—</div>
+            <div class="result-unit">persona-mes</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Tiempo</div>
+            <div class="result-value green" id="r-c81b-time">—</div>
+            <div class="result-unit">meses</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Personal</div>
+            <div class="result-value amber" id="r-c81b-staff">—</div>
+            <div class="result-unit">personas</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Costo Total</div>
+            <div class="result-value" id="r-c81b-cost" style="font-size:18px">—</div>
+            <div class="result-unit">USD</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--amber)"></div>Distribución por Etapas</div>
+        <table class="phases-table">
+          <thead><tr><th>Etapa</th><th>Esfuerzo (PM)</th><th>Tiempo (mes)</th><th>%</th></tr></thead>
+          <tbody id="c81b-etapas">
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Presione Calcular</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--accent2)"></div>Ecuaciones aplicadas</div>
+        <div class="eq-box" id="c81b-eq"><span class="ec">// Presione Calcular para ver las ecuaciones</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COCOMO 81 INTERMEDIO ═══ -->
+<div id="panel-c81" class="panel active">
+  <div class="page-header">
+    <div>
+      <div class="page-title">COCOMO 81 Intermedio <span class="page-badge">Boehm 1981</span></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot"></div>Parámetros del proyecto</div>
+        <div class="form-row">
+          <div class="form-label">Tamaño KLOC <span>Miles de líneas de código</span></div>
+          <input type="number" id="c81-kloc" value="10" min="0.1" step="0.1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Modo del proyecto</div>
+          <select id="c81-modo">
+            <option value="organico">Orgánico</option>
+            <option value="semiacoplado">Semiacoplado</option>
+            <option value="empotrado">Empotrado</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Costo hombre-mes ($)</div>
+          <input type="number" id="c81-costo" value="3000" min="0" step="100">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot"></div>Conductores de Coste (EAF)</div>
+        <div class="driver-grid">
+          {% for d in conductores %}
+          <div class="driver-item">
+            <span class="driver-code">{{ d.code }}</span>
+            <span class="driver-name">{{ d.name }}</span>
+            <select class="driver-select" id="c81-{{ d.code }}">
+              {% set levels = ['MUY BAJO','BAJO','NOMINAL','ALTO','MUY ALTO','EXT'] %}
+              {% for v in d.vals %}
+                {% if v is not none %}
+                  <option value="{{ v }}" {% if loop.index0 == 2 %}selected{% endif %}>
+                    {{ levels[loop.index0] }}
+                  </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="eaf-row">
+          <span style="color:var(--text2);font-size:12px">EAF total calculado:</span>
+          <span class="eaf-val" id="c81-eaf-display">1.00</span>
+        </div>
+        <button onclick="calcularC81()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:var(--display);font-weight:600;font-size:14px;cursor:pointer;margin-top:12px;transition:all .15s" onmouseover="this.style.background='#6aaeff'" onmouseout="this.style.background='var(--accent)'">
+          Calcular →
+        </button>
+        <button id="btn-export-c81" onclick="exportarExcel('c81')" style="display:none;width:100%;padding:10px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-family:var(--display);font-weight:600;font-size:12px;cursor:pointer;margin-top:8px;transition:all .15s" onmouseover="this.style.background='rgba(79,156,249,.1)'" onmouseout="this.style.background='transparent'">
+          📊 Exportar Excel
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Resultados</div>
+        <div class="results-grid">
+          <div class="result-card highlight">
+            <div class="result-label">Esfuerzo</div>
+            <div class="result-value accent" id="r-c81-effort">—</div>
+            <div class="result-unit">persona-mes</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Tiempo</div>
+            <div class="result-value green" id="r-c81-time">—</div>
+            <div class="result-unit">meses</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Personal</div>
+            <div class="result-value amber" id="r-c81-staff">—</div>
+            <div class="result-unit">personas</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Costo Total</div>
+            <div class="result-value" id="r-c81-cost" style="font-size:18px">—</div>
+            <div class="result-unit">USD</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--amber)"></div>Distribución por Etapas</div>
+        <table class="phases-table">
+          <thead><tr><th>Etapa</th><th>Esfuerzo (PM)</th><th>Tiempo (mes)</th><th>%</th></tr></thead>
+          <tbody id="c81-etapas">
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Presione Calcular</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--accent2)"></div>Ecuaciones aplicadas</div>
+        <div class="eq-box" id="c81-eq"><span class="ec">// Presione Calcular para ver las ecuaciones</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COCOMO II ═══ -->
+<div id="panel-c2" class="panel">
+  <div class="page-header">
+    <div>
+      <div class="page-title">COCOMO II <span class="page-badge">Post-Arquitectura</span></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot"></div>Parámetros base</div>
+        <div class="form-row">
+          <div class="form-label">Tamaño KLOC</div>
+          <input type="number" id="c2-kloc" value="10" min="0.1" step="0.1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Costo hombre-mes ($)</div>
+          <input type="number" id="c2-costo" value="3000" min="0" step="100">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--amber)"></div>Factores de Escala (SF)</div>
+        {% set levels6 = ['MUY BAJO','BAJO','NOMINAL','ALTO','MUY ALTO','EXT'] %}
+        {% for d in factores_escala %}
+        <div class="form-row">
+          <div class="form-label"><b style="color:var(--accent);font-family:var(--mono)">{{ d.code }}</b> {{ d.name }}</div>
+          <select id="sf-{{ d.code }}" style="width:140px">
+            {% for v in d.vals %}
+            <option value="{{ v }}" {% if loop.index0 == 2 %}selected{% endif %}>{{ levels6[loop.index0] }} ({{ v }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+        <div class="eaf-row">
+          <span style="color:var(--text2);font-size:12px">Exponente B:</span>
+          <span class="eaf-val" id="c2-B-display">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Multiplicadores de Esfuerzo (EM)</div>
+        <div class="driver-grid">
+          {% for d in multiplicadores %}
+          <div class="driver-item">
+            <span class="driver-code">{{ d.code }}</span>
+            <span class="driver-name">{{ d.name }}</span>
+            <select class="driver-select" id="em-{{ d.code }}">
+              {% for v in d.vals %}
+                {% if v is not none %}
+                <option value="{{ v }}" {% if loop.index0 == 2 %}selected{% endif %}>
+                  {{ ['MB','B','N','A','MA','EA'][loop.index0] }}
+                </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="eaf-row">
+          <span style="color:var(--text2);font-size:12px">Producto EM:</span>
+          <span class="eaf-val" id="em-display">1.00</span>
+        </div>
+        <button onclick="calcularC2()" style="width:100%;padding:12px;background:var(--accent2);color:#fff;border:none;border-radius:8px;font-family:var(--display);font-weight:600;font-size:14px;cursor:pointer;margin-top:12px">
+          Calcular →
+        </button>
+        <button id="btn-export-c2" onclick="exportarExcel('c2')" style="display:none;width:100%;padding:10px;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:8px;font-family:var(--display);font-weight:600;font-size:12px;cursor:pointer;margin-top:8px;transition:all .15s" onmouseover="this.style.background='rgba(124,58,237,.1)'" onmouseout="this.style.background='transparent'">
+          📊 Exportar Excel
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Resultados COCOMO II</div>
+        <div class="results-grid">
+          <div class="result-card highlight">
+            <div class="result-label">Esfuerzo</div>
+            <div class="result-value accent" id="r-c2-effort">—</div>
+            <div class="result-unit">persona-mes</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Tiempo TDEV</div>
+            <div class="result-value green" id="r-c2-time">—</div>
+            <div class="result-unit">meses</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Personal</div>
+            <div class="result-value amber" id="r-c2-staff">—</div>
+            <div class="result-unit">personas</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Costo Total</div>
+            <div class="result-value" id="r-c2-cost" style="font-size:18px">—</div>
+            <div class="result-unit">USD</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--amber)"></div>Distribución por Etapas</div>
+        <table class="phases-table">
+          <thead><tr><th>Etapa</th><th>Esfuerzo (PM)</th><th>Tiempo (mes)</th><th>%</th></tr></thead>
+          <tbody id="c2-etapas">
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Presione Calcular</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--accent2)"></div>Ecuaciones aplicadas</div>
+        <div class="eq-box" id="c2-eq"><span class="ec">// Presione Calcular para ver las ecuaciones</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PUNTOS DE FUNCIÓN ═══ -->
+<div id="panel-fp" class="panel">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Puntos de Función <span class="page-badge">FPA</span></div>
+      <div class="page-desc">Calcula KLOC desde componentes funcionales — procesado en Python</div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot"></div>Conteo de Componentes</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);padding:0 8px">Tipo</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-align:center">Simple</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-align:center">Medio</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-align:center">Complejo</div>
+        </div>
+        {% for t in tipos_fp %}
+        <div class="fp-row">
+          <span class="fp-label">{{ t.name }}</span>
+          <input type="number" class="fp-input" id="fp-{{ t.code }}-s" value="0" min="0">
+          <input type="number" class="fp-input" id="fp-{{ t.code }}-m" value="0" min="0">
+          <input type="number" class="fp-input" id="fp-{{ t.code }}-c" value="0" min="0">
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--amber)"></div>Factor de Ajuste (VAF)</div>
+        <div style="margin-bottom:12px;color:var(--text2);font-size:12px">14 características (0=ninguna influencia, 5=esencial)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          {% for c in vaf_chars %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--bg3);border-radius:5px;border:1px solid var(--border)">
+            <span style="font-size:11px;color:var(--text2);flex:1">{{ c }}</span>
+            <select id="vaf-{{ loop.index0 }}" style="width:50px;font-size:11px;padding:2px 4px">
+              {% for v in range(6) %}<option value="{{ v }}" {% if v==3 %}selected{% endif %}>{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Conversión a KLOC</div>
+        <div class="form-row">
+          <div class="form-label">Lenguaje de programación</div>
+          <select id="fp-lang">
+            {% for lang, loc in loc_por_pf.items() %}
+            <option value="{{ loc }}" {% if lang=='Python' %}selected{% endif %}>{{ lang }} ({{ loc }} LOC/PF)</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button onclick="calcularFP()" style="width:100%;padding:12px;background:var(--green);color:#000;border:none;border-radius:8px;font-family:var(--display);font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">
+          Calcular→
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-dot" style="background:var(--green)"></div>Resultados</div>
+        <div class="results-grid">
+          <div class="result-card">
+            <div class="result-label">PF Sin Ajustar</div>
+            <div class="result-value accent" id="r-fp-pfsa">—</div>
+            <div class="result-unit">puntos función</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">VAF</div>
+            <div class="result-value amber" id="r-fp-vaf">—</div>
+            <div class="result-unit">factor ajuste</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">PF Ajustados</div>
+            <div class="result-value green" id="r-fp-pfa">—</div>
+            <div class="result-unit">puntos función</div>
+          </div>
+          <div class="result-card highlight">
+            <div class="result-label">KLOC estimadas</div>
+            <div class="result-value accent" id="r-fp-kloc" style="font-size:22px">—</div>
+            <div class="result-unit">miles de líneas</div>
+          </div>
+        </div>
+        <button onclick="enviarAC81b()" class="btn-secondary" style="border-color:var(--green);color:var(--green)">→ Enviar KLOC a COCOMO 81 Básico</button>
+        <button onclick="enviarAC81()" class="btn-secondary">→ Enviar KLOC a COCOMO 81 Intermedio</button>
+        <button onclick="enviarAC2()" class="btn-secondary" style="border-color:var(--accent2);color:var(--accent2)">→ Enviar KLOC a COCOMO II</button>
+        <button id="btn-export-fp" onclick="exportarExcel('fp')" style="display:none;width:100%;padding:10px;background:transparent;color:var(--green);border:1px solid var(--green);border-radius:8px;font-family:var(--display);font-weight:600;font-size:12px;cursor:pointer;margin-top:8px;transition:all .15s" onmouseover="this.style.background='rgba(34,211,160,.1)'" onmouseout="this.style.background='transparent'">
+          📊 Exportar Excel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ─── CONSTANTES DE MODOS (para mostrar en el panel básico) ───
+const MODOS_PARAMS = {
+  organico:     {a:3.2,  b:1.05, c:2.5, d:0.38},
+  semiacoplado: {a:3.0,  b:1.12, c:2.5, d:0.35},
+  empotrado:    {a:2.8,  b:1.20, c:2.5, d:0.32},
+};
+
+// ─── NAVEGACIÓN ───
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  const map = { c81b: 0, c81: 1, c2: 2, fp: 3 };
+  document.querySelectorAll('.nav-item')[map[id]]?.classList.add('active');
+}
+
+// ─── RENDERIZAR ETAPAS ───
+function renderEtapas(tbodyId, etapas) {
+  const tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = '';
+  etapas.forEach(e => {
+    tbody.innerHTML += `
+      <tr>
+        <td class="phase-name">${e.nombre}</td>
+        <td><span class="phase-bar-wrap"><span class="phase-bar" style="width:${e.pct}%"></span></span>${e.esfuerzo}</td>
+        <td>${e.tiempo}</td>
+        <td style="color:var(--accent);font-family:var(--mono)">${e.pct}%</td>
+      </tr>`;
+  });
+}
+
+// ─── ACTUALIZAR CONSTANTES DEL MODO BÁSICO ───
+document.getElementById('c81b-modo').addEventListener('change', function() {
+  const p = MODOS_PARAMS[this.value];
+  document.getElementById('c81b-const-a').textContent = p.a;
+  document.getElementById('c81b-const-b').textContent = p.b;
+  document.getElementById('c81b-const-c').textContent = p.c;
+  document.getElementById('c81b-const-d').textContent = p.d;
+});
+
+// ─── COCOMO 81 BÁSICO ───
+let ultimoResultadoC81b = null;
+
+async function calcularC81Basico() {
+  const body = {
+    kloc:     parseFloat(document.getElementById('c81b-kloc').value),
+    modo:     document.getElementById('c81b-modo').value,
+    costo_hm: parseFloat(document.getElementById('c81b-costo').value),
+  };
+
+  const res = await fetch('/calcular/c81basico', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  const r = data.resultado;
+  const p = r.params;
+
+  document.getElementById('r-c81b-effort').textContent = r.esfuerzo;
+  document.getElementById('r-c81b-time').textContent   = r.tiempo;
+  document.getElementById('r-c81b-staff').textContent  = r.personal;
+  document.getElementById('r-c81b-cost').textContent   = '$' + r.costo.toLocaleString();
+
+  renderEtapas('c81b-etapas', data.etapas);
+
+  document.getElementById('c81b-eq').innerHTML = `
+    <span class="ec">// COCOMO 81 Básico — EAF = 1 (sin conductores de coste)</span><br>
+    <span class="ec">// Modo: ${body.modo} — a=${p.a}, b=${p.b}, c=${p.c}, d=${p.d}</span><br>
+    <span class="ev">E</span> = <span class="en">${p.a}</span> × <span class="en">${body.kloc}</span>^<span class="en">${p.b}</span> = <span class="ev">${r.esfuerzo}</span> PM<br>
+    <span class="ev">T</span> = <span class="en">${p.c}</span> × <span class="en">${r.esfuerzo}</span>^<span class="en">${p.d}</span> = <span class="ev">${r.tiempo}</span> meses<br>
+    <span class="ev">N</span> = ${r.esfuerzo} / ${r.tiempo} = <span class="ev">${r.personal}</span> personas<br>
+    <span class="ev">Costo</span> = ${r.esfuerzo} × $${body.costo_hm.toLocaleString()} = <span class="ev">$${r.costo.toLocaleString()}</span>`;
+
+  ultimoResultadoC81b = { body, resultado: r, etapas: data.etapas };
+  document.getElementById('btn-export-c81b').style.display = 'inline-block';
+}
+
+// ─── COCOMO 81 INTERMEDIO ───
+// Datos cacheados para exportación
+let ultimoResultadoC81 = null;
+
+async function calcularC81() {
+  // CORREGIDO: usar lista explícita de códigos en vez de querySelectorAll genérico
+  // (el selector [id^="c81-"] también capturaba c81-eq y c81-etapas → EAF = NaN)
+  const driverCodes = ['RELY','DATA','CPLX','TIME','STOR','VIRT','TURN','ACAP','AEXP','PCAP','VEXP','LEXP','MODP','TOOL','SCED'];
+  let eaf = 1.0;
+  const valoresDrivers = {};
+  driverCodes.forEach(code => {
+    const el = document.getElementById('c81-' + code);
+    if (el) {
+      const v = parseFloat(el.value);
+      eaf *= v;
+      valoresDrivers[code] = { nombre: el.parentElement.querySelector('.driver-name')?.textContent || code, valor: v };
+    }
+  });
+  eaf = Math.round(eaf * 1000) / 1000;
+  document.getElementById('c81-eaf-display').textContent = eaf.toFixed(2);
+
+  const kloc = parseFloat(document.getElementById('c81-kloc').value);
+  const modo = document.getElementById('c81-modo').value;
+  const costo_hm = parseFloat(document.getElementById('c81-costo').value);
+
+  const body = { kloc, modo, eaf, costo_hm };
+
+  const res = await fetch('/calcular/c81', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  const r = data.resultado;
+  const p = r.params;
+
+  document.getElementById('r-c81-effort').textContent = r.esfuerzo;
+  document.getElementById('r-c81-time').textContent   = r.tiempo;
+  document.getElementById('r-c81-staff').textContent  = r.personal;
+  document.getElementById('r-c81-cost').textContent   = '$' + r.costo.toLocaleString();
+
+  renderEtapas('c81-etapas', data.etapas);
+
+  document.getElementById('c81-eq').innerHTML = `
+    <span class="ec">// Modo: ${body.modo} — a=${p.a}, b=${p.b}, c=${p.c}, d=${p.d}</span><br>
+    <span class="ev">E</span> = <span class="en">${p.a}</span> × <span class="en">${body.kloc}</span>^<span class="en">${p.b}</span> × <span class="en">${eaf}</span> = <span class="ev">${r.esfuerzo}</span> PM<br>
+    <span class="ev">T</span> = <span class="en">${p.c}</span> × <span class="en">${r.esfuerzo}</span>^<span class="en">${p.d}</span> = <span class="ev">${r.tiempo}</span> meses<br>
+    <span class="ev">N</span> = ${r.esfuerzo} / ${r.tiempo} = <span class="ev">${r.personal}</span> personas<br>
+    <span class="ev">Costo</span> = ${r.esfuerzo} × $${body.costo_hm.toLocaleString()} = <span class="ev">$${r.costo.toLocaleString()}</span>`;
+
+  // Guardar para exportación
+  ultimoResultadoC81 = { body, resultado: r, etapas: data.etapas, eaf, valoresDrivers };
+  document.getElementById('btn-export-c81').style.display = 'inline-block';
+}
+
+// ─── COCOMO II ───
+let ultimoResultadoC2 = null;
+
+async function calcularC2() {
+  const sfCodes  = ['PREC','FLEX','RESL','TEAM','PMAT'];
+  const emCodes  = ['RELY','DATA','CPLX','RUSE','DOCU','TIME','STOR','PVOL','ACAP','PCAP','PCON','APEX','PLEX','LTEX','TOOL','SITE','SCED'];
+
+  const sf_valores = sfCodes.map(c  => parseFloat(document.getElementById('sf-' + c).value));
+  const em_valores = emCodes.map(c  => parseFloat(document.getElementById('em-' + c).value));
+
+  const sumSF = sf_valores.reduce((a,b)=>a+b,0);
+  const B = 0.91 + 0.01 * sumSF;
+  document.getElementById('c2-B-display').textContent = B.toFixed(3);
+
+  let EM = em_valores.reduce((a,b)=>a*b,1);
+  document.getElementById('em-display').textContent = EM.toFixed(2);
+
+  const kloc = parseFloat(document.getElementById('c2-kloc').value);
+  const costo_hm = parseFloat(document.getElementById('c2-costo').value);
+
+  const body = { kloc, sf_valores, em_valores, costo_hm };
+
+  const res  = await fetch('/calcular/c2', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  const r    = data.resultado;
+
+  document.getElementById('r-c2-effort').textContent = r.esfuerzo;
+  document.getElementById('r-c2-time').textContent   = r.tiempo;
+  document.getElementById('r-c2-staff').textContent  = r.personal;
+  document.getElementById('r-c2-cost').textContent   = '$' + r.costo.toLocaleString();
+
+  renderEtapas('c2-etapas', data.etapas);
+
+  document.getElementById('c2-eq').innerHTML = `
+    <span class="ec">// COCOMO II Post-Arquitectura</span><br>
+    <span class="ev">B</span> = 0.91 + 0.01 × ΣSF(<span class="en">${r.suma_sf}</span>) = <span class="ev">${r.B}</span><br>
+    <span class="ev">E</span> = <span class="en">2.94</span> × <span class="en">${body.kloc}</span>^<span class="ev">${r.B}</span> × <span class="en">${r.EM}</span> = <span class="ev">${r.esfuerzo}</span> PM<br>
+    <span class="ev">T</span> = 3.67 × ${r.esfuerzo}^(0.28+0.002×${r.suma_sf}) = <span class="ev">${r.tiempo}</span> meses<br>
+    <span class="ev">N</span> = ${r.esfuerzo} / ${r.tiempo} = <span class="ev">${r.personal}</span> personas`;
+
+  ultimoResultadoC2 = { body, resultado: r, etapas: data.etapas, B, EM, sumSF, sfCodes, emCodes };
+  document.getElementById('btn-export-c2').style.display = 'inline-block';
+}
+
+// ─── PUNTOS DE FUNCIÓN ───
+let ultimoResultadoFP = null;
+
+async function calcularFP() {
+  const fpCodes = ['EI','EO','EQ','ILF','EIF'];
+  const conteos = {};
+  fpCodes.forEach(c => {
+    conteos[c] = [
+      parseInt(document.getElementById(`fp-${c}-s`).value)||0,
+      parseInt(document.getElementById(`fp-${c}-m`).value)||0,
+      parseInt(document.getElementById(`fp-${c}-c`).value)||0,
+    ];
+  });
+  const vaf_valores = Array.from({length:14}, (_,i) => parseInt(document.getElementById(`vaf-${i}`).value)||0);
+
+  const loc_por_pf = parseInt(document.getElementById('fp-lang').value);
+
+  const body = { conteos, vaf_valores, loc_por_pf };
+
+  const res  = await fetch('/calcular/fp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const r = await res.json();
+
+  document.getElementById('r-fp-pfsa').textContent = r.pfsa;
+  document.getElementById('r-fp-vaf').textContent  = r.vaf;
+  document.getElementById('r-fp-pfa').textContent  = r.pfa;
+  document.getElementById('r-fp-kloc').textContent = r.kloc;
+
+  ultimoResultadoFP = { body, resultado: r, fpCodes };
+  document.getElementById('btn-export-fp').style.display = 'inline-block';
+}
+
+// ─── ENVÍO DE KLOC A OTROS MODELOS ───
+function enviarAC81b() {
+  const k = document.getElementById('r-fp-kloc').textContent;
+  if (k === '—') return alert('Primero calcula los Puntos de Función');
+  document.getElementById('c81b-kloc').value = k;
+  showPanel('c81b');
+}
+function enviarAC81() {
+  const k = document.getElementById('r-fp-kloc').textContent;
+  if (k === '—') return alert('Primero calcula los Puntos de Función');
+  document.getElementById('c81-kloc').value = k;
+  showPanel('c81');
+}
+function enviarAC2() {
+  const k = document.getElementById('r-fp-kloc').textContent;
+  if (k === '—') return alert('Primero calcula los Puntos de Función');
+  document.getElementById('c2-kloc').value = k;
+  showPanel('c2');
+}
+
+// ─── EXPORTAR A EXCEL ───
+function exportarExcel(modelo) {
+  let payload = null;
+  if (modelo === 'c81basico' && ultimoResultadoC81b) {
+    payload = ultimoResultadoC81b;
+  } else if (modelo === 'c81' && ultimoResultadoC81) {
+    payload = ultimoResultadoC81;
+  } else if (modelo === 'c2' && ultimoResultadoC2) {
+    payload = ultimoResultadoC2;
+  } else if (modelo === 'fp' && ultimoResultadoFP) {
+    payload = ultimoResultadoFP;
+  }
+  if (!payload) return alert('Primero debes calcular los resultados.');
+
+  fetch('/exportar/' + modelo, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const nombres = { c81basico: 'COCOMO81_Basico', c81: 'COCOMO81_Intermedio', c2: 'COCOMO_II', fp: 'Puntos_Funcion' };
+    a.download = nombres[modelo] + '_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  })
+  .catch(() => alert('Error al generar el archivo Excel.'));
+}
+</script>
+</body>
+</html>

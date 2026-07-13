@@ -1,0 +1,152 @@
+<!-- COCOMO II -->
+<div id="panel-c2" class="panel">
+  <div class="page-header">
+    <div>
+      <div class="page-title">COCOMO <span>II</span></div>
+      <div class="page-desc">Post-Arquitectura &middot; 5 factores de escala + 17 multiplicadores</div>
+    </div>
+    <span class="page-chip amber">Boehm 2000</span>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Parametros base</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Tamano KLOC <small>Miles de lineas de codigo</small></div>
+          <input type="number" id="c2-kloc" value="10" min="0.1" step="0.1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Costo hora-mes <small>Salario promedio mensual</small></div>
+          <input type="number" id="c2-costo" value="3000" min="0" step="100">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Factores de Escala</div>
+          <div class="card-title-rule"></div>
+        </div>
+        {% set levels6 = ['MUY BAJO','BAJO','NOMINAL','ALTO','MUY ALTO','EXT'] %}
+        {% for d in factores_escala %}
+        <div class="form-row">
+          <div class="form-label"><b style="color:var(--accent);font-family:var(--mono);font-size:10.5px">{{ d.code }}</b> <small>{{ d.name }}</small></div>
+          <select id="sf-{{ d.code }}" style="width:150px">
+            {% for v in d.vals %}
+            <option value="{{ v }}" {% if loop.index0 == 2 %}selected{% endif %}>{{ levels6[loop.index0] }} ({{ v }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+        <div class="eaf-row" style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px">
+          <span style="color:var(--text2);font-size:12px;font-weight:460">Exponente B</span>
+          <span class="eaf-val" id="c2-B-display" style="color:var(--amber)">&mdash;</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Multiplicadores de Esfuerzo</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="driver-grid">
+          {% for d in multiplicadores %}
+          <div class="driver-item">
+            <span class="driver-code">{{ d.code }}</span>
+            <span class="driver-name">{{ d.name }}</span>
+            <select class="driver-select" id="em-{{ d.code }}">
+              {% for v in d.vals %}
+                {% if v is not none %}
+                <option value="{{ v }}" {% if loop.index0 == 2 %}selected{% endif %}>
+                  {{ ['MB','B','N','A','MA','EA'][loop.index0] }}
+                </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="eaf-section">
+          <div class="eaf-row">
+            <span style="color:var(--text2);font-size:12px;font-weight:460">Producto EM</span>
+            <span class="eaf-val" id="em-display">1.00</span>
+          </div>
+          <div class="gauge-rail">
+            <div class="gauge-fill" id="em-gauge-fill" style="width:50%;background:var(--amber)"></div>
+            <div class="gauge-thumb" id="em-gauge-marker" style="left:50%"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>0.7</span><span>0.85</span><span>1.0</span><span>1.15</span><span>1.4+</span>
+          </div>
+        </div>
+
+        <button onclick="calcularC2()" class="btn btn-primary purple" style="margin-top:14px">
+          Calcular &rarr;
+        </button>
+        <button id="btn-export-c2" onclick="exportarExcel('c2')" class="btn-export btn-excel" style="display:none">
+          Exportar Excel
+        </button>
+        <button id="btn-pdf-c2" onclick="exportarPDF('c2')" class="btn-export btn-pdf" style="display:none">
+          Exportar PDF
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Resultados</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="results-grid result-stagger" id="results-c2">
+          <div class="result-card accent-border">
+            <div class="result-label">Esfuerzo</div>
+            <div class="result-value accent" id="r-c2-effort">&mdash;</div>
+            <div class="result-unit">persona-mes</div>
+          </div>
+          <div class="result-card green-border">
+            <div class="result-label">Tiempo TDEV</div>
+            <div class="result-value green" id="r-c2-time">&mdash;</div>
+            <div class="result-unit">meses</div>
+          </div>
+          <div class="result-card amber-border">
+            <div class="result-label">Personal</div>
+            <div class="result-value amber" id="r-c2-staff">&mdash;</div>
+            <div class="result-unit">personas</div>
+          </div>
+          <div class="result-card accent-border">
+            <div class="result-label">Costo Total</div>
+            <div class="result-value accent" id="r-c2-cost" style="font-size:22px">&mdash;</div>
+            <div class="result-unit">PEN</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Distribucion por Etapas</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <table class="phases-table">
+          <thead><tr><th>Etapa</th><th>Esfuerzo</th><th>Tiempo</th></tr></thead>
+          <tbody id="c2-etapas">
+            <tr><td colspan="3" style="text-align:center;color:var(--text3);padding:28px">Presione Calcular</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Ecuaciones aplicadas</div>
+          <div class="card-title-rule"></div>
+        </div>
+        <div class="eq-box" id="c2-eq"><span class="ec">// Presione Calcular</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- La actualización en tiempo real de B y EM la maneja c2.js vía addEventListener -->
